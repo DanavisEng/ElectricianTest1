@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danavis Engineering - Technical Assessment</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        :root { --primary: #1e2a5e; --secondary: #27ae60; --danger: #e74c3c; --accent: #007bff; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f7f9; margin: 0; padding: 15px; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); position: relative; }
+        
+        #secret-reset { position: absolute; top: 0; left: 0; width: 50px; height: 50px; background: transparent; border: none; cursor: default; z-index: 9999; }
+        .header { text-align: center; border-bottom: 3px solid var(--primary); margin-bottom: 20px; padding-bottom: 10px; }
+        .logo { color: var(--primary); margin: 0; font-size: 28px; font-weight: 800; text-transform: uppercase; }
+        .logo span { color: var(--secondary); }
+        
+        .warning-box { background: #fff0f0; border: 5px solid var(--danger); padding: 25px; margin: 20px 0; border-radius: 10px; color: var(--danger); text-align: center; }
+        .info-badge { display: inline-block; background: #eef2f7; padding: 10px 20px; border-radius: 50px; margin: 10px; font-weight: bold; color: var(--primary); border: 1px solid #d1d9e6; }
+        .status-bar { display: flex; justify-content: space-between; background: #eef2f7; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; }
+        
+        .question-block { display: none; min-height: 250px; }
+        .question-block.active { display: block; }
+        .question-text { font-size: 19px; font-weight: bold; margin-bottom: 15px; color: var(--primary); }
+        
+        .q-image { width: 100%; max-width: 340px; border-radius: 8px; border: 3px solid #eee; display: block; margin: 5px auto; }
+        .image-comparison { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px; justify-content: center; }
+        .image-container { text-align: center; flex: 1; min-width: 250px; }
+        .image-label { font-weight: bold; background: var(--primary); color: white; padding: 5px 15px; border-radius: 4px; display: inline-block; margin-top: 10px; }
+
+        .options label { display: block; background: #fff; border: 2px solid #eee; padding: 15px; margin-bottom: 10px; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .options label:hover { border-color: var(--accent); background: #f0f7ff; }
+        
+        .btn { padding: 15px 25px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; transition: 0.3s; text-decoration: none; display: inline-block; text-align: center;}
+        .btn-next { background: var(--secondary); color: white; width: 100%; display: block;}
+        .btn-start { background: var(--primary); color: white; width: 280px; margin-top: 15px; font-size: 18px; }
+        
+        #result-screen { text-align: center; display: none; }
+        .pass { color: var(--secondary); font-size: 30px; font-weight: bold; }
+        .fail { color: var(--danger); font-size: 30px; font-weight: bold; }
+
+        /* --- STYLED PDF TEMPLATE --- */
+        #pdf-template { 
+            position: absolute; left: -9999px; width: 800px; height: 1130px; 
+            background: white; padding: 0; margin: 0; box-sizing: border-box; 
+        }
+        .cert-outer-frame { border: 15px solid #1e2a5e; height: 100%; padding: 10px; box-sizing: border-box; }
+        .cert-inner-frame { 
+            border: 2px solid #1e2a5e; height: 100%; padding: 40px; position: relative; 
+            display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+            overflow: hidden;
+        }
+        /* Vandenženklio sluoksnis */
+        .watermark-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            display: flex; flex-wrap: wrap; justify-content: center; align-content: center; 
+            opacity: 0.07; transform: rotate(-35deg); pointer-events: none; z-index: 1;
+        }
+        .watermark-text { font-size: 70px; font-weight: 900; margin: 40px; white-space: nowrap; color: #1e2a5e; }
+        
+        .cert-content { position: relative; z-index: 2; width: 100%; text-align: center; }
+        .cert-logo { font-size: 36px; font-weight: 900; color: #1e2a5e; border-bottom: 4px solid #27ae60; display: inline-block; padding-bottom: 5px; }
+        .cert-name { font-size: 54px; color: #1e2a5e; margin: 40px 0; font-family: 'Times New Roman', serif; border-bottom: 1px solid #ccc; display: inline-block; min-width: 400px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <button id="secret-reset" title="Reset for testing" onclick="adminReset()"></button>
+    
+    <div class="header">
+        <h1 class="logo">DANAVIS <span>ENGINEERING</span></h1>
+        <p>Technical Competency Examination</p>
+    </div>
+
+    <div id="blocked-screen" style="display: none; text-align: center; padding: 50px;">
+        <h1 style="color: var(--danger); font-size: 40px;">ACCESS DENIED</h1>
+        <p>This device has already submitted an attempt.</p>
+    </div>
+
+    <div id="start-screen" style="text-align: center;">
+        <div class="warning-box">
+            <h2>⚠️ EXAM SECURITY</h2>
+            <p>Moving away from this tab 2 times will result in immediate failure.</p>
+        </div>
+        <div class="info-badge">⏱️ Time: 4 Minutes</div>
+        <div class="info-badge">✅ Pass Mark: 8/10</div>
+        <div style="margin: 20px 0;">
+            <input type="text" id="candidateName" placeholder="ENTER YOUR FULL NAME" style="width: 80%; padding: 18px; margin-bottom: 15px; border-radius: 8px; border: 3px solid #ccc; font-size: 18px; text-align: center;">
+            <br>
+            <button class="btn btn-start" onclick="startQuiz()">Start Assessment</button>
+        </div>
+    </div>
+
+    <div id="quiz-content" style="display: none;">
+        <div class="status-bar">
+            <span>Time Left: <span id="timer">04:00</span></span>
+            <span>Violations: <span id="violations" style="color:red;">0</span>/2</span>
+        </div>
+        <div id="questions-area"></div>
+        <button class="btn btn-next" id="action-btn" onclick="nextQuestion()">Next Question</button>
+    </div>
+
+    <div id="result-screen">
+        <h2 id="result-title">Test Results</h2>
+        <div style="font-size: 60px; font-weight: 900; margin: 20px;" id="final-score">0/10</div>
+        <div id="eval-text" style="margin-bottom: 30px; font-size: 20px;"></div>
+        <div style="display: flex; flex-direction: column; gap: 15px; align-items: center;">
+            <button class="btn" style="background: #333; color: white; width: 400px;" onclick="generateSecurePDF()">1. Download Official Certificate</button>
+            <button class="btn" style="background: var(--accent); color: white; width: 400px;" onclick="sendResults()">2. Send Email (Attach PDF)</button>
+        </div>
+    </div>
+</div>
+
+<div id="pdf-template">
+    <div class="cert-outer-frame">
+        <div class="cert-inner-frame">
+            <div class="watermark-layer">
+                <div class="watermark-text">DANAVIS ENGINEERING</div>
+                <div class="watermark-text">DANAVIS ENGINEERING</div>
+                <div class="watermark-text">DANAVIS ENGINEERING</div>
+                <div class="watermark-text">DANAVIS ENGINEERING</div>
+                <div class="watermark-text">OFFICIAL DOCUMENT</div>
+                <div class="watermark-text">DANAVIS ENGINEERING</div>
+            </div>
+            
+            <div class="cert-content" style="margin-top: 40px;">
+                <div class="cert-logo">DANAVIS ENGINEERING</div>
+                <div style="letter-spacing: 5px; color: #1e2a5e; font-size: 22px; margin-top: 20px; font-weight: bold;">CERTIFICATE OF TECHNICAL COMPETENCY</div>
+                <p style="margin-top: 50px; font-size: 20px; color: #555;">This is to certify that</p>
+                <div class="cert-name" id="pdf-name">Candidate Name</div>
+                <p style="font-size: 18px; max-width: 600px; margin: 20px auto; line-height: 1.6; color: #333;">
+                    Has successfully demonstrated technical proficiency by completing the 
+                    <b>Danavis Engineering Assessment</b> with an official score of:
+                </p>
+                <div style="font-size: 48px; font-weight: 900; color: #27ae60; margin: 20px 0;" id="pdf-score">0/10</div>
+                <p style="font-size: 14px; color: #666;" id="pdf-status-text">STATUS: VERIFIED / QUALIFIED</p>
+            </div>
+
+            <div style="width: 100%; display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; position: relative; z-index: 2;">
+                <div style="text-align: left; font-size: 14px;">
+                    <p>Date: <b id="pdf-date"></b></p>
+                    <p>Certificate ID: <b id="pdf-id"></b></p>
+                    <p>Security Hash: <b id="pdf-hash" style="font-family: monospace;"></b></p>
+                </div>
+                <div style="text-align: center;">
+                    <div style="border-top: 2px solid #333; width: 200px; padding-top: 5px; font-weight: bold;">Engineering Department</div>
+                    <p style="font-size: 10px; color: #888;">Authorized Digital Document</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function adminReset() { localStorage.removeItem("danavis_blocked"); window.location.reload(); }
+    if (localStorage.getItem("danavis_blocked") === "true") {
+        document.getElementById("start-screen").style.display = "none";
+        document.getElementById("blocked-screen").style.display = "block";
+    }
+
+    const rawQuestions = [
+        { q: "What is the standard Neutral wire color in the EU?", a: ["Brown", "Black", "Blue", "Grey"], c: "Blue" },
+        { q: "According to installation rules, what technical issue is visible in this photo?", img: "1.jpg", a: ["Incorrect cable tie color", "Bending radius is too small (cable is kinked)", "Cable surface is too dusty", "Incorrect bracket type"], c: "Bending radius is too small (cable is kinked)" },
+        { q: "Star-Delta: Which connection is typically used for 400V operation in a standard 230/400V motor?", a: ["Star (Y)", "Delta (Δ)", "Series", "Parallel"], c: "Star (Y)" },
+        { q: "What are the standard colors for Phase wires (L1, L2, L3) in a 3-phase system?", a: ["Red, Blue, Yellow", "Brown, Black, Grey", "Green, White, Black", "Blue, Black, Brown"], c: "Brown, Black, Grey" },
+        { q: "What is the standard color for the Earth (Ground) wire?", a: ["Red", "Green/Yellow", "White", "Blue"], c: "Green/Yellow" },
+        { q: "What does an RCD protect against?", a: ["Short circuit", "Electric shock/leakage", "High bills", "Dust"], c: "Electric shock/leakage" },
+        { q: "Which Multimeter setting is used to check if a fuse is blown?", a: ["Voltage (V)", "Resistance/Continuity (Ω)", "Current (A)", "Capacitance (µF)"], c: "Resistance/Continuity (Ω)" },
+        { q: "Look at the two cable tray installations. Which option is correct and why?", multiImg: ["2.jpg", "3.jpg"], a: ["Option A: It is correct because cables are one next to each other with even spacing and secured.", "Option B: It is correct because cables are bundled together for maximum strength.", "Option A: It is correct because it uses more stainless steel cable ties for strength.", "Option B: It is correct only because the cables are newer."], c: "Option A: It is correct because cables are one next to each other with even spacing and secured." },
+        { q: "Which IP rating provides the HIGHEST level of protection against water?", a: ["IP20", "IP44", "IP54", "IP68"], c: "IP68" },
+        { q: "Main function of a fuse/MCB?", a: ["Energy storage", "Circuit protection from overload", "Voltage conversion", "Current measurement"], c: "Circuit protection from overload" }
+    ];
+
+    let currentQ = 0, score = 0, timeLeft = 240, violations = 0, timerInterval, candidateName = "", certID = "";
+    let shuffledQuestions = [];
+
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    function startQuiz() {
+        candidateName = document.getElementById('candidateName').value.trim();
+        if(candidateName.length < 5) return alert("Please enter your full name!");
+        
+        shuffledQuestions = rawQuestions.map(q => {
+            let options = [...q.a];
+            shuffleArray(options);
+            return { ...q, options: options };
+        });
+
+        certID = "DV-" + Math.random().toString(36).substr(2, 7).toUpperCase();
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('quiz-content').style.display = 'block';
+        renderQuestion();
+        startTimer();
+    }
+
+    function renderQuestion() {
+        const q = shuffledQuestions[currentQ];
+        let mediaHtml = "";
+        if (q.multiImg) {
+            mediaHtml = `<div class="image-comparison">
+                <div class="image-container"><img src="${q.multiImg[0]}" class="q-image"><div class="image-label">Option A</div></div>
+                <div class="image-container"><img src="${q.multiImg[1]}" class="q-image"><div class="image-label">Option B</div></div>
+            </div>`;
+        } else if (q.img) {
+            mediaHtml = `<img src="${q.img}" class="q-image" style="margin-bottom:20px;">`;
+        }
+        document.getElementById('questions-area').innerHTML = `
+            <div class="question-block active">
+                <div class="question-text">${currentQ + 1}. ${q.q}</div>
+                ${mediaHtml}
+                <div class="options">
+                    ${q.options.map(opt => `<label><input type="radio" name="ans" value="${opt}"> ${opt}</label>`).join('')}
+                </div>
+            </div>`;
+        document.getElementById('action-btn').innerText = (currentQ === shuffledQuestions.length-1) ? "Submit Results" : "Next Question";
+    }
+
+    function nextQuestion() {
+        const sel = document.querySelector('input[name="ans"]:checked');
+        if (!sel) return alert("Please select an answer!");
+        if (sel.value === shuffledQuestions[currentQ].c) score++;
+        if (++currentQ < shuffledQuestions.length) renderQuestion(); else finishQuiz();
+    }
+
+    function startTimer() {
+        timerInterval = setInterval(() => {
+            if (--timeLeft <= 0) finishQuiz();
+            let m = Math.floor(timeLeft/60), s = timeLeft%60;
+            document.getElementById('timer').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+        }, 1000);
+    }
+
+    function finishQuiz() {
+        clearInterval(timerInterval);
+        document.getElementById('quiz-content').style.display = 'none';
+        document.getElementById('result-screen').style.display = 'block';
+        const isPassed = score >= 8;
+        document.getElementById('final-score').innerText = `${score}/10`;
+        document.getElementById('final-score').className = isPassed ? "pass" : "fail";
+        document.getElementById('eval-text').innerHTML = isPassed ? "<b>QUALIFICATION CONFIRMED</b>" : "<b style='color:red'>FAILED</b>";
+        localStorage.setItem("danavis_blocked", "true");
+    }
+
+    window.addEventListener('blur', () => {
+        if (document.getElementById('quiz-content').style.display === 'block') {
+            violations++;
+            document.getElementById('violations').innerText = violations;
+            if (violations >= 2) { score = 0; finishQuiz(); alert("Security Violation: Assessment Terminated."); }
+        }
+    });
+
+    async function generateSecurePDF() {
+        document.getElementById('pdf-name').innerText = candidateName;
+        document.getElementById('pdf-score').innerText = `${score}/10`;
+        document.getElementById('pdf-date').innerText = new Date().toLocaleDateString();
+        document.getElementById('pdf-id').innerText = certID;
+        document.getElementById('pdf-hash').innerText = btoa(candidateName).substr(0,10).toUpperCase();
+        
+        const canvas = await html2canvas(document.getElementById('pdf-template'), { scale: 2 });
+        const imgData = canvas.toDataURL('image/jpeg', 1.0);
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297); 
+        pdf.save(`Danavis_Cert_${candidateName.replace(/\s+/g, '_')}.pdf`);
+    }
+
+    function sendResults() {
+        const subject = encodeURIComponent(`Assessment: ${score}/10 - ${candidateName}`);
+        const body = encodeURIComponent(`Candidate: ${candidateName}\nScore: ${score}/10\nID: ${certID}\nPlease find the certificate attached (downloaded by candidate).`);
+        window.location.href = `mailto:projects@danavisengineering.com?subject=${subject}&body=${body}`;
+    }
+</script>
+
+</body>
+</html>
